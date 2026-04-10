@@ -1,4 +1,4 @@
-"""Build script to create AutoMailer.exe"""
+"""Build script to create AutoMailer executable"""
 
 import subprocess
 import shutil
@@ -14,7 +14,7 @@ DIST_DEST = BACKEND / "dist_bundle"  # temp copy for PyInstaller
 
 def build_frontend():
     print("=== [1/4] Building frontend ===")
-    subprocess.run(["npm", "run", "build"], cwd=str(FRONTEND), check=True, shell=True)
+    subprocess.run(["npm", "run", "build"], cwd=str(FRONTEND), check=True)
 
 
 def copy_dist():
@@ -35,7 +35,7 @@ def build_exe():
             "--name",
             "AutoMailer",
             "--add-data",
-            f"{DIST_DEST};dist",
+            f"{DIST_DEST}:dist",
             "--hidden-import",
             "app",
             "--hidden-import",
@@ -112,5 +112,5 @@ if __name__ == "__main__":
     copy_dist()
     build_exe()
     cleanup()
-    exe_path = BACKEND / "dist" / "AutoMailer.exe"
+    exe_path = BACKEND / "dist" / "AutoMailer"
     print(f"\nDone! Executable at: {exe_path}")

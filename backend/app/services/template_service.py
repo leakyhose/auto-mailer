@@ -31,14 +31,15 @@ def parse_raw_template(raw_text: str) -> tuple[str, str]:
     return subject, body
 
 
-def render_template(subject: str, body: str, contact: dict[str, str], sender_name: str) -> tuple[str, str]:
+def render_template(subject: str, body: str, contact: dict[str, str], custom_tags: dict[str, str]) -> tuple[str, str]:
     """Replace all {PLACEHOLDER} tokens in subject and body.
 
-    Replaces {NAME} with sender_name, and any {COLUMN} with the contact's value.
+    Replaces custom tags first, then any {COLUMN} with the contact's value.
     """
     def replace(text: str) -> str:
-        # Replace {NAME} with sender name
-        text = text.replace("{NAME}", sender_name)
+        # Replace custom tags
+        for key, value in custom_tags.items():
+            text = text.replace(f"{{{key}}}", value)
 
         # Replace any {COLUMN} with the contact's value
         def replacer(match):

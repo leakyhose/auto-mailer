@@ -3,7 +3,7 @@ from pathlib import Path
 
 
 def _get_data_parent() -> Path:
-    """When frozen (PyInstaller .exe), store data next to the executable.
+    """When frozen (PyInstaller executable), store data next to the executable.
     In dev mode, use the source directory as before."""
     if getattr(sys, "frozen", False):
         return Path(sys.executable).resolve().parent

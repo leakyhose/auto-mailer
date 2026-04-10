@@ -19,6 +19,7 @@ export interface EmailPreview {
   template_name: string;
   subject: string;
   body: string;
+  body_html: string;
   contact_index: number;
 }
 

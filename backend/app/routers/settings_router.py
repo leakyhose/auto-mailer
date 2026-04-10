@@ -9,12 +9,23 @@ router = APIRouter()
 @router.get("", response_model=SettingsResponse)
 async def get_settings():
     store = load_store()
-    return SettingsResponse(sender_name=store.get("sender_name", ""))
+    # Migrate old sender_name to custom_tags
+    if "sender_name" in store and "custom_tags" not in store:
+        store["custom_tags"] = {"NAME": store.pop("sender_name")}
+        save_store(store)
+    return SettingsResponse(
+        custom_tags=store.get("custom_tags", {}),
+        signature=store.get("signature", ""),
+    )
 
 
 @router.put("", response_model=SettingsResponse)
 async def update_settings(settings: SettingsUpdate):
     store = load_store()
-    store["sender_name"] = settings.sender_name
+    store["custom_tags"] = settings.custom_tags
+    store["signature"] = settings.signature
     save_store(store)
-    return SettingsResponse(sender_name=settings.sender_name)
+    return SettingsResponse(
+        custom_tags=settings.custom_tags,
+        signature=settings.signature,
+    )

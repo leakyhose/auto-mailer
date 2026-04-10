@@ -9,9 +9,16 @@ import type {
   AuthStatus,
 } from "../types";
 
+export interface SendLogEntry {
+  time: string;
+  level: string;
+  message: string;
+}
+
 interface AppState {
   // General
-  senderName: string;
+  customTags: Record<string, string>;
+  signature: string;
   authStatus: AuthStatus;
   attachments: AttachmentInfo[];
 
@@ -30,36 +37,63 @@ interface AppState {
   sendResults: SendResult[];
   isSending: boolean;
   isPreviewing: boolean;
+  sendProgress: {
+    active: boolean;
+    total: number;
+    sent: number;
+    failed: number;
+    currentEmail: string;
+  };
+  sendLog: SendLogEntry[];
 
   // UI
   showPreviewModal: boolean;
   showResultsModal: boolean;
+  showSendingModal: boolean;
+  saveStatus: "" | "saving" | "saved";
+  activeEditorTab: string;
 
   // Actions
   loadSettings: () => Promise<void>;
-  setSenderName: (name: string) => Promise<void>;
+  saveCustomTags: (tags: Record<string, string>) => Promise<void>;
+  saveSignature: (html: string) => Promise<void>;
   loadAuthStatus: () => Promise<void>;
   saveGmailConfig: (email: string, appPassword: string) => Promise<void>;
   disconnectGoogle: () => Promise<void>;
   loadAttachments: () => Promise<void>;
   uploadAttachments: (files: FileList) => Promise<void>;
   deleteAttachment: (filename: string) => Promise<void>;
-  uploadCsv: (file: File) => Promise<void>;
   updateCsvText: (text: string) => Promise<void>;
   setViewMode: (mode: "table" | "text") => void;
   loadContacts: () => Promise<void>;
   loadTemplates: () => Promise<void>;
   saveTemplate: (name: string, content: TemplateContent) => Promise<void>;
-  parseTemplate: (name: string, rawText: string) => Promise<TemplateContent>;
   previewEmails: () => Promise<void>;
   sendEmails: () => Promise<void>;
+  cancelSend: () => Promise<void>;
+  pollSendStatus: () => Promise<void>;
+  fetchSendLog: () => Promise<void>;
   retryEmails: (indices: number[]) => Promise<void>;
   setShowPreviewModal: (show: boolean) => void;
   setShowResultsModal: (show: boolean) => void;
+  setShowSendingModal: (show: boolean) => void;
+  setActiveEditorTab: (tab: string) => void;
+}
+
+let _savedTimer: ReturnType<typeof setTimeout> | undefined;
+function markSaving(set: (s: Partial<AppState>) => void) {
+  clearTimeout(_savedTimer);
+  set({ saveStatus: "saving" });
+}
+function markSaved(set: (s: Partial<AppState>) => void) {
+  clearTimeout(_savedTimer);
+  set({ saveStatus: "saved" });
+  _savedTimer = setTimeout(() => set({ saveStatus: "" }), 1500);
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
-  senderName: "",
+  customTags: {},
+  signature: "",
   authStatus: { connected: false },
   attachments: [],
   contacts: [],
@@ -72,17 +106,33 @@ export const useAppStore = create<AppState>((set, get) => ({
   sendResults: [],
   isSending: false,
   isPreviewing: false,
+  sendProgress: { active: false, total: 0, sent: 0, failed: 0, currentEmail: "" },
+  sendLog: [],
   showPreviewModal: false,
   showResultsModal: false,
+  showSendingModal: false,
+  saveStatus: "",
+  activeEditorTab: "__contacts__",
 
   loadSettings: async () => {
     const { data } = await api.get("/settings");
-    set({ senderName: data.sender_name });
+    set({ customTags: data.custom_tags, signature: data.signature });
   },
 
-  setSenderName: async (name: string) => {
-    set({ senderName: name });
-    await api.put("/settings", { sender_name: name });
+  saveCustomTags: async (tags: Record<string, string>) => {
+    set({ customTags: tags });
+    markSaving(set);
+    const { signature } = get();
+    await api.put("/settings", { custom_tags: tags, signature });
+    markSaved(set);
+  },
+
+  saveSignature: async (html: string) => {
+    set({ signature: html });
+    markSaving(set);
+    const { customTags } = get();
+    await api.put("/settings", { custom_tags: customTags, signature: html });
+    markSaved(set);
   },
 
   loadAuthStatus: async () => {
@@ -119,21 +169,8 @@ export const useAppStore = create<AppState>((set, get) => ({
     await get().loadAttachments();
   },
 
-  uploadCsv: async (file: File) => {
-    const formData = new FormData();
-    formData.append("file", file);
-    const { data } = await api.post("/csv/upload", formData);
-    set({
-      contacts: data.contacts,
-      csvHeaders: data.headers,
-      templateNames: data.template_names,
-      csvRawText: data.raw_text,
-    });
-    // Load saved templates
-    await get().loadTemplates();
-  },
-
   updateCsvText: async (text: string) => {
+    markSaving(set);
     const { data } = await api.put("/csv/contacts", { raw_text: text });
     set({
       contacts: data.contacts,
@@ -141,6 +178,8 @@ export const useAppStore = create<AppState>((set, get) => ({
       templateNames: data.template_names,
       csvRawText: data.raw_text,
     });
+    await get().loadTemplates();
+    markSaved(set);
   },
 
   setViewMode: (mode) => set({ viewMode: mode }),
@@ -166,20 +205,9 @@ export const useAppStore = create<AppState>((set, get) => ({
     set((state) => ({
       templates: { ...state.templates, [name]: content },
     }));
+    markSaving(set);
     await api.put(`/templates/${encodeURIComponent(name)}`, content);
-  },
-
-  parseTemplate: async (name: string, rawText: string) => {
-    const { data } = await api.post(
-      `/templates/${encodeURIComponent(name)}/parse`,
-      { raw_text: rawText }
-    );
-    const content: TemplateContent = { subject: data.subject, body: data.body };
-    set((state) => ({
-      templates: { ...state.templates, [name]: content },
-    }));
-    await api.put(`/templates/${encodeURIComponent(name)}`, content);
-    return content;
+    markSaved(set);
   },
 
   previewEmails: async () => {
@@ -193,13 +221,56 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   sendEmails: async () => {
-    set({ isSending: true, showPreviewModal: false });
+    set({ showPreviewModal: false, isSending: true, showSendingModal: true });
+    await api.post("/emails/send");
+    // Start polling
+    get().pollSendStatus();
+  },
+
+  cancelSend: async () => {
+    await api.post("/emails/cancel");
+  },
+
+  fetchSendLog: async () => {
     try {
-      const { data } = await api.post("/emails/send");
-      set({ sendResults: data, showResultsModal: true });
-    } finally {
-      set({ isSending: false });
+      const { data } = await api.get("/emails/log");
+      set({ sendLog: data });
+    } catch {
+      // ignore
     }
+  },
+
+  pollSendStatus: async () => {
+    const poll = async () => {
+      try {
+        const { data } = await api.get("/emails/status");
+        set({
+          sendProgress: {
+            active: data.active,
+            total: data.total,
+            sent: data.sent,
+            failed: data.failed,
+            currentEmail: data.current_email,
+          },
+        });
+        // Also fetch log
+        get().fetchSendLog();
+        if (!data.active) {
+          // Done — convert results and show results modal
+          set({
+            isSending: false,
+            showSendingModal: false,
+            sendResults: data.results,
+            showResultsModal: true,
+          });
+          return;
+        }
+      } catch {
+        // If poll fails, keep trying
+      }
+      setTimeout(poll, 1000);
+    };
+    poll();
   },
 
   retryEmails: async (indices: number[]) => {
@@ -223,4 +294,6 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   setShowPreviewModal: (show) => set({ showPreviewModal: show }),
   setShowResultsModal: (show) => set({ showResultsModal: show }),
+  setShowSendingModal: (show) => set({ showSendingModal: show }),
+  setActiveEditorTab: (tab) => set({ activeEditorTab: tab }),
 }));

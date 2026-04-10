@@ -5,7 +5,7 @@ from ..config import DATA_DIR, STORE_PATH, ATTACHMENTS_DIR
 
 _lock = Lock()
 
-DEFAULT_STORE = {"sender_name": "", "templates": {}, "csv": None}
+DEFAULT_STORE = {"custom_tags": {}, "templates": {}, "csv": None}
 
 
 def _ensure_data_dir():

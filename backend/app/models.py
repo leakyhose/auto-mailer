@@ -2,11 +2,13 @@ from pydantic import BaseModel
 
 
 class SettingsResponse(BaseModel):
-    sender_name: str
+    custom_tags: dict[str, str]
+    signature: str
 
 
 class SettingsUpdate(BaseModel):
-    sender_name: str
+    custom_tags: dict[str, str]
+    signature: str
 
 
 class Contact(BaseModel):
@@ -55,6 +57,7 @@ class EmailPreview(BaseModel):
     template_name: str
     subject: str
     body: str
+    body_html: str
     contact_index: int
 
 

@@ -1,10 +1,10 @@
 import { useEffect } from "react";
 import { useAppStore } from "./stores/useAppStore";
-import { LeftPanel } from "./components/layout/LeftPanel";
-import { CenterPanel } from "./components/layout/CenterPanel";
-import { RightPanel } from "./components/layout/RightPanel";
+import { Sidebar } from "./components/layout/Sidebar";
+import { MainContent } from "./components/layout/MainContent";
 import { ActionBar } from "./components/email/ActionBar";
 import { PreviewModal } from "./components/email/PreviewModal";
+import { SendingModal } from "./components/email/SendingModal";
 import { ResultsModal } from "./components/email/ResultsModal";
 
 function App() {
@@ -12,7 +12,9 @@ function App() {
   const loadContacts = useAppStore((s) => s.loadContacts);
   const loadTemplates = useAppStore((s) => s.loadTemplates);
   const showPreviewModal = useAppStore((s) => s.showPreviewModal);
+  const showSendingModal = useAppStore((s) => s.showSendingModal);
   const showResultsModal = useAppStore((s) => s.showResultsModal);
+  const saveStatus = useAppStore((s) => s.saveStatus);
 
   useEffect(() => {
     loadSettings();
@@ -23,15 +25,19 @@ function App() {
   return (
     <div className="flex h-screen flex-col bg-white">
       {/* Header */}
-      <header className="border-b px-6 py-3">
+      <header className="flex items-center justify-between border-b px-6 py-3">
         <h1 className="text-lg font-bold text-gray-900">Auto Mailer</h1>
+        {saveStatus && (
+          <span className="text-xs text-gray-400 italic">
+            {saveStatus === "saving" ? "Saving..." : "Saved"}
+          </span>
+        )}
       </header>
 
-      {/* 3-column layout */}
-      <div className="grid flex-1 grid-cols-[260px_1fr_320px] overflow-hidden">
-        <LeftPanel />
-        <CenterPanel />
-        <RightPanel />
+      {/* 2-column layout */}
+      <div className="flex flex-1 overflow-hidden">
+        <Sidebar />
+        <MainContent />
       </div>
 
       {/* Bottom action bar */}
@@ -39,6 +45,7 @@ function App() {
 
       {/* Modals */}
       {showPreviewModal && <PreviewModal />}
+      {showSendingModal && <SendingModal />}
       {showResultsModal && <ResultsModal />}
     </div>
   );

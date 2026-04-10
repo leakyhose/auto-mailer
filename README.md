@@ -6,33 +6,21 @@ Local email outreach tool. Upload a CSV of contacts, define templates per group,
 
 - Python 3.11+
 - Node.js 18+
-- A Google Cloud project with the Gmail API enabled
-
-## Google OAuth Setup (one-time)
-
-1. Go to [Google Cloud Console](https://console.cloud.google.com/)
-2. Create a new project (or use an existing one)
-3. Enable the **Gmail API** (APIs & Services > Library > search "Gmail API")
-4. Go to **APIs & Services > Credentials**
-5. Click **Create Credentials > OAuth client ID**
-6. Application type: **Web application**
-7. Add `http://localhost:8000/api/auth/callback` as an **Authorized redirect URI**
-8. Download the JSON and save it as `backend/credentials.json`
+- A Gmail account with an [App Password](https://support.google.com/accounts/answer/185833)
 
 ## Quick Start
 
-### Windows
+Run `./start.sh` — it launches both backend and frontend servers.
 
-Double-click `start.bat` — it launches both servers.
+Open http://localhost:5173 in your browser.
 
 ### Manual
 
 **Backend:**
 ```bash
 cd backend
-python -m venv venv
-venv\Scripts\activate        # Windows
-# source venv/bin/activate   # Mac/Linux
+python3 -m venv venv
+source venv/bin/activate
 pip install -r requirements.txt
 python run.py
 ```
@@ -45,6 +33,10 @@ npm run dev
 ```
 
 Open http://localhost:5173
+
+## Build
+
+Run `./build.sh` to create a standalone executable at `backend/dist/AutoMailer`.
 
 ## CSV Format
 

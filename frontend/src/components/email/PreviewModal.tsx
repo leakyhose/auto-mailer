@@ -61,9 +61,10 @@ export function PreviewModal() {
                 <span className="font-medium text-gray-700">Subject:</span>{" "}
                 {p.subject}
               </div>
-              <pre className="whitespace-pre-wrap rounded bg-gray-50 p-3 text-sm text-gray-700">
-                {p.body}
-              </pre>
+              <div
+                className="rounded bg-gray-50 p-3 text-sm text-gray-700"
+                dangerouslySetInnerHTML={{ __html: p.body_html }}
+              />
             </div>
           ))}
         </div>
