@@ -14,13 +14,11 @@ from ..config import ATTACHMENTS_DIR, SMTP_HOST, SMTP_PORT
 
 def _body_to_html(body: str, signature: str) -> str:
     """Convert plain text body to HTML and append rich signature."""
-    # Escape the plain text body, then convert newlines to <br>
     body_html = html.escape(body).replace("\n", "<br>\n")
     parts = [body_html]
     if signature.strip():
-        parts.append('<br>\n<div style="margin-top:16px">-- <br>\n')
+        parts.append("<br>\n")
         parts.append(signature)
-        parts.append("</div>")
     return "".join(parts)
 
 
